@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Squat Saga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: a manga page. Thick-bordered panels on white gutters; camera panel is the big action frame, hero panel beside it. Single committed look (paper + ink + one red). */
+:root{
+  --paper:#fbfbf7;
+  --ink:#141416;
+  --tone:#d9d9de;
+  --muted:#5b5b63;
+  --red:#e0262d;
+  --redsoft:#fde3e4;
+  --skin:#f3cfae;
+  --display:'Dela Gothic One','Arial Black',Impact,sans-serif;
+  --body:'Zen Kaku Gothic New','Helvetica Neue',Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:auto;background:var(--paper);color:var(--ink)}
+body{margin:0;font-family:var(--body);font-size:15px;line-height:1.5;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.app{max-width:1140px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:14px}
+
+.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 20px;border-bottom:4px solid var(--ink);padding-bottom:10px}
+.mast h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,6vw,3.4rem);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance}
+.mast h1 em{font-style:normal;color:var(--red)}
+.chapter{font-family:var(--display);font-size:.95rem;letter-spacing:.06em;text-transform:uppercase;display:flex;gap:10px;align-items:center}
+.chapter .tag{background:var(--ink);color:var(--paper);padding:3px 10px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:840px){.grid{grid-template-columns:minmax(0,1fr)}}
+.frame{border:4px solid var(--ink);background:var(--paper);position:relative;min-width:0}
+
+/* camera stage */
+.stage{position:relative;aspect-ratio:4/3;max-width:100%;background:var(--ink);overflow:hidden}
+@media (max-width:540px){.stage{aspect-ratio:3/4}}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mirror{transform:scaleX(-1)}
+.idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center;color:var(--ink);
+  background-color:var(--paper);
+  background-image:radial-gradient(var(--tone) 1.6px,transparent 1.8px);background-size:10px 10px}
+.idle .big{font-family:var(--display);font-size:clamp(1.6rem,5vw,2.6rem);line-height:1;background:var(--paper);padding:6px 12px;border:4px solid var(--ink);transform:rotate(-2deg)}
+.idle p{margin:0;max-width:34ch;background:var(--paper);padding:4px 8px}
+
+.hud-count{position:absolute;left:12px;top:8px;font-family:var(--display);color:var(--paper);font-size:clamp(3rem,10vw,5rem);line-height:1;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--red);font-variant-numeric:tabular-nums}
+.hud-count small{display:block;font-size:.8rem;letter-spacing:.12em;-webkit-text-stroke:0;text-shadow:none;background:var(--ink);padding:2px 6px;width:max-content}
+.chip{position:absolute;right:46px;top:12px;font-family:var(--display);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;background:var(--paper);border:3px solid var(--ink);padding:2px 8px}
+.meter{position:absolute;right:12px;top:12px;bottom:12px;width:20px;border:3px solid var(--ink);background:var(--paper)}
+.meter .fill{position:absolute;left:0;right:0;top:0;height:0;background:var(--red);transition:height .08s linear}
+.meter .deepline{position:absolute;left:-6px;right:-6px;top:82%;height:3px;background:var(--ink)}
+.meter .deeplabel{position:absolute;right:26px;top:calc(82% - 9px);font-family:var(--display);font-size:.6rem;color:var(--paper);background:var(--ink);padding:0 4px}
+.bubble{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:calc(100% - 80px);background:var(--paper);border:3px solid var(--ink);border-radius:22px;padding:8px 16px;font-weight:700;text-align:center;line-height:1.3}
+.bubble.hot{background:var(--red);color:var(--paper)}
+
+.summary{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,20,22,.55);padding:16px}
+.summary .card{background:var(--paper);border:4px solid var(--ink);box-shadow:8px 8px 0 var(--red);padding:18px 22px;text-align:center;max-width:320px;width:100%}
+.summary h2{font-family:var(--display);font-weight:400;margin:0 0 8px;font-size:1.8rem}
+.summary dl{display:grid;grid-template-columns:1fr auto;gap:4px 16px;margin:0 0 14px;text-align:left}
+.summary dd{margin:0;font-family:var(--display);font-variant-numeric:tabular-nums}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;padding:12px;border-top:4px solid var(--ink)}
+button,.seg label{font:inherit;font-weight:700;cursor:pointer;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:8px 14px;line-height:1.2}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+button:focus-visible,.seg input:focus-visible+label{outline:3px solid var(--red);outline-offset:2px}
+button.primary{background:var(--red);color:var(--paper)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.status{padding:0 12px 12px;color:var(--muted);font-size:.88rem;margin:0}
+
+/* hero panel */
+.herobox canvas{display:block;width:100%;height:auto;max-width:100%;aspect-ratio:400/480;border-bottom:4px solid var(--ink)}
+.heroinfo{padding:14px;display:flex;flex-direction:column;gap:12px}
+.namerow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lvl{font-family:var(--display);background:var(--ink);color:var(--paper);padding:6px 10px;font-size:1.1rem;line-height:1;font-variant-numeric:tabular-nums}
+.rank{font-family:var(--display);font-size:1.15rem;line-height:1.1}
+.rank small{display:block;font-family:var(--body);font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.xpbar{height:16px;border:3px solid var(--ink);background:var(--paper);position:relative}
+.xpbar .fill{height:100%;width:0;background:repeating-linear-gradient(-45deg,var(--red) 0 8px,#c51d24 8px 16px);transition:width .4s ease}
+.xptext{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:3px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:3px solid var(--ink)}
+.stat{padding:8px 10px;border-right:3px solid var(--ink);border-bottom:3px solid var(--ink)}
+.stat:nth-child(2n){border-right:0}
+.stat:nth-last-child(-n+2){border-bottom:0}
+.stat .k{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.stat .v{font-family:var(--display);font-size:1.45rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:.8rem;color:var(--muted)}
+.goalrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.goalrow .k{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.seg{display:flex;gap:6px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:4px 10px;box-shadow:2px 2px 0 var(--ink)}
+.seg input:checked+label{background:var(--ink);color:var(--paper)}
+.unlock{border:3px dashed var(--ink);padding:8px 10px;font-size:.9rem}
+.unlock b{font-family:var(--display);font-weight:400}
+
+.tips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:760px){.tips{grid-template-columns:minmax(0,1fr)}}
+.tip{padding:12px 14px}
+.tip h3{font-family:var(--display);font-weight:400;margin:0 0 4px;font-size:1.05rem}
+.tip p{margin:0;max-width:60ch}
+.tip.red{background:var(--redsoft)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="mast">
+    <h1>SQUAT <em>SAGA</em></h1>
+    <div class="chapter"><span class="tag" id="chapter">Ch. 1</span><span id="chapterSub">Day 1 of training</span></div>
+  </header>
+
+  <main class="grid">
+    <section class="frame" aria-label="Training camera">
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="idle" id="idle">
+          <div class="big">STAND IN FRAME</div>
+          <p>Prop your phone or webcam about 2 m away so it sees you from shoulders to feet. Then press Start camera.</p>
+        </div>
+        <div class="hud-count" id="hudCount" hidden>0<small>REPS</small></div>
+        <div class="chip" id="modeChip" hidden>Full body</div>
+        <div class="meter" id="meter" hidden aria-hidden="true"><div class="fill" id="meterFill"></div><div class="deepline"></div><div class="deeplabel">DEEP</div></div>
+        <div class="bubble" id="bubble" hidden>Step into frame</div>
+        <div class="summary" id="summary" hidden>
+          <div class="card">
+            <h2>SESSION CLEAR</h2>
+            <dl>
+              <dt>Reps</dt><dd id="sumReps">0</dd>
+              <dt>Deep reps</dt><dd id="sumDeep">0</dd>
+              <dt>XP earned</dt><dd id="sumXp">0</dd>
+            </dl>
+            <button id="sumClose" class="primary">Back to training</button>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btnStart" class="primary">Start camera</button>
+        <button id="btnFlip" hidden>Flip camera</button>
+        <button id="btnDemo">Simulate a rep</button>
+        <button id="btnEnd" hidden>End session</button>
+      </div>
+      <p class="status" id="status">Video stays on this device. Nothing is uploaded.</p>
+    </section>
+
+    <section class="frame herobox" aria-label="Your hero">
+      <canvas id="hero" width="400" height="480"></canvas>
+      <div class="heroinfo">
+        <div class="namerow">
+          <div class="lvl" id="lvl">LV 1</div>
+          <div class="rank"><small>Current rank</small><span id="rank">Couch Civilian</span></div>
+        </div>
+        <div>
+          <div class="xpbar"><div class="fill" id="xpFill"></div></div>
+          <div class="xptext"><span id="xpNow">0 XP</span><span id="xpNext">60 XP to LV 2</span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="k">Today</div><div class="v"><span id="today">0</span><small> / <span id="goal">50</span></small></div></div>
+          <div class="stat"><div class="k">Streak</div><div class="v"><span id="streak">0</span><small> days</small></div></div>
+          <div class="stat"><div class="k">Total reps</div><div class="v" id="total">0</div></div>
+          <div class="stat"><div class="k">Deep rate</div><div class="v" id="deepRate">–</div></div>
+        </div>
+        <div class="goalrow">
+          <span class="k">Daily goal</span>
+          <div class="seg" role="radiogroup" aria-label="Daily goal">
+            <input type="radio" name="goal" id="g25" value="25"><label for="g25">25</label>
+            <input type="radio" name="goal" id="g50" value="50"><label for="g50">50</label>
+            <input type="radio" name="goal" id="g100" value="100"><label for="g100">100</label>
+          </div>
+        </div>
+        <div class="unlock" id="unlock">Next unlock at <b>LV 3</b>: Wobbly Rookie rank</div>
+      </div>
+    </section>
+  </main>
+
+  <section class="tips">
+    <div class="frame tip"><h3>Phone on the floor</h3><p>Lean it against a wall about 2 m away, front camera facing you. Full body in frame unlocks depth checks: hips at or below knees counts as a DEEP rep for double XP.</p></div>
+    <div class="frame tip"><h3>At your desk</h3><p>Push your chair back and stand where the webcam sees your head and shoulders. Desk mode counts reps from how far your shoulders drop. Keep your head in frame at the bottom.</p></div>
+    <div class="frame tip red"><h3>Private by design</h3><p>Pose tracking runs in your browser. Your video is never recorded or sent anywhere, and your progress is saved only on this device.</p></div>
+  </section>
+</div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const INK = '#141416', PAPER = '#fbfbf7', RED = '#e0262d', SKIN = '#f3cfae', TONE = '#d9d9de', GOLD = '#f2b705';
+
+/* ---------- progress state ---------- */
+const KEY = 'squatsaga.v1';
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const dayDiff = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+const S = Object.assign({ xp:0, total:0, deep:0, streak:0, lastGoalDate:null, day:todayStr(), todayReps:0, goal:50, firstDay:todayStr(), daysTrained:[] }, saved || {});
+if (S.day !== todayStr()) { S.day = todayStr(); S.todayReps = 0; }
+if (S.lastGoalDate && dayDiff(S.lastGoalDate, todayStr()) > 1) S.streak = 0;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+const need = n => Math.round(60 * Math.pow(n - 1, 1.6));       // total XP to reach level n
+const levelOf = xp => { let L = 1; while (xp >= need(L + 1)) L++; return L; };
+const RANKS = [[1,'Couch Civilian'],[3,'Wobbly Rookie'],[6,'Iron Shins'],[10,'Steel Glutes'],[15,'Quake Thighs'],[22,'Mountain Mover'],[30,'Legend of the Hundred']];
+const UNLOCKS = [[3,'Wobbly Rookie rank'],[5,'battle aura'],[6,'Iron Shins rank'],[8,'visible abs'],[10,'Steel Glutes rank + storm lines'],[15,'golden headband'],[22,'Mountain Mover rank'],[30,'Legend of the Hundred']];
+const rankOf = L => RANKS.filter(r => L >= r[0]).pop()[1];
+
+const sess = { reps:0, deep:0, xp:0 };
+
+function render() {
+  const L = levelOf(S.xp), lo = need(L), hi = need(L + 1);
+  $('lvl').textContent = 'LV ' + L;
+  $('rank').textContent = rankOf(L);
+  $('xpFill').style.width = Math.min(100, (S.xp - lo) / (hi - lo) * 100) + '%';
+  $('xpNow').textContent = S.xp.toLocaleString() + ' XP';
+  $('xpNext').textContent = (hi - S.xp).toLocaleString() + ' XP to LV ' + (L + 1);
+  $('today').textContent = S.todayReps;
+  $('goal').textContent = S.goal;
+  $('streak').textContent = S.streak;
+  $('total').textContent = S.total.toLocaleString();
+  $('deepRate').textContent = S.total ? Math.round(S.deep / S.total * 100) + '%' : '–';
+  const nu = UNLOCKS.find(u => u[0] > L);
+  $('unlock').innerHTML = nu ? 'Next unlock at <b>LV ' + nu[0] + '</b>: ' + nu[1] : '<b>Everything unlocked.</b> You are the legend.';
+  const day = (S.daysTrained.length || 0) + (S.daysTrained.includes(todayStr()) ? 0 : 1);
+  $('chapter').textContent = 'Ch. ' + day;
+  $('chapterSub').textContent = S.todayReps >= S.goal ? 'Today’s goal cleared' : 'Day ' + day + ' of training';
+  const g = $('g' + S.goal); if (g) g.checked = true;
+  $('hudCount').firstChild.nodeValue = String(sess.reps);
+}
+document.querySelectorAll('input[name=goal]').forEach(r => r.addEventListener('change', () => { S.goal = +r.value; save(); render(); }));
+
+/* ---------- audio ---------- */
+let actx = null;
+function beep(freq, dur = 0.09) {
+  if (!actx) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'square'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.06, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+  o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+}
+function ensureAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch (e) {} }
+
+/* ---------- scoring ---------- */
+function addRep(deep) {
+  const before = levelOf(S.xp);
+  const mult = 1 + Math.min(S.streak, 10) * 0.05;
+  let gain = Math.round((deep ? 10 : 5) * mult);
+  S.total++; S.todayReps++; if (deep) S.deep++;
+  sess.reps++; if (deep) sess.deep++;
+  if (!S.daysTrained.includes(todayStr())) { S.daysTrained.push(todayStr()); if (S.daysTrained.length > 400) S.daysTrained.shift(); }
+  if (S.todayReps === S.goal) {
+    gain += 50;
+    if (S.lastGoalDate !== todayStr()) {
+      S.streak = (S.lastGoalDate && dayDiff(S.lastGoalDate, todayStr()) === 1) ? S.streak + 1 : 1;
+      S.lastGoalDate = todayStr();
+    }
+    pop('GOAL!', true);
+    setBubble('Daily goal cleared! +50 XP. Streak: ' + S.streak, true);
+    beep(880, .25);
+  }
+  S.xp += gain; sess.xp += gain;
+  const after = levelOf(S.xp);
+  if (after > before) { pop('LEVEL UP!', true); buildBg(after); beep(1040, .3); }
+  else pop(deep ? 'DEEP!' : 'REP!', false);
+  beep(deep ? 660 : 440);
+  save(); render();
+}
+
+/* ---------- hero drawing ---------- */
+const hc = $('hero'), DPR = Math.min(2, window.devicePixelRatio || 1), W = 400, H = 480, GROUND = H - 46;
+hc.width = W * DPR; hc.height = H * DPR;
+const hx = hc.getContext('2d'); hx.scale(DPR, DPR);
+const bg = document.createElement('canvas'); bg.width = W * DPR; bg.height = H * DPR;
+const bx = bg.getContext('2d'); bx.scale(DPR, DPR);
+function rng(seed) { return () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; }
+function buildBg(level) {
+  bx.fillStyle = PAPER; bx.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.42, maxR = Math.hypot(W / 2, H * 0.58);
+  bx.fillStyle = TONE;
+  for (let y = 0; y < H; y += 8) for (let x = (y / 8) % 2 ? 4 : 0; x < W; x += 8) {
+    const r = Math.max(0, (Math.hypot(x - cx, y - cy) / maxR - 0.35) * 4.2);
+    if (r > 0.2) { bx.beginPath(); bx.arc(x, y, Math.min(r, 3.4), 0, 7); bx.fill(); }
+  }
+  const rand = rng(7 + level), n = Math.min(110, 34 + level * 3);
+  bx.fillStyle = INK;
+  for (let i = 0; i < n; i++) {
+    const a = rand() * Math.PI * 2, r0 = 175 + rand() * 70, w = 0.004 + rand() * 0.01;
+    bx.beginPath();
+    bx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    bx.lineTo(cx + Math.cos(a - w) * 520, cy + Math.sin(a - w) * 520);
+    bx.lineTo(cx + Math.cos(a + w) * 520, cy + Math.sin(a + w) * 520);
+    bx.fill();
+  }
+  // ground
+  bx.fillStyle = PAPER; bx.fillRect(0, GROUND + 4, W, H - GROUND);
+  bx.strokeStyle = INK; bx.lineWidth = 4; bx.beginPath(); bx.moveTo(0, GROUND + 4); bx.lineTo(W, GROUND + 4); bx.stroke();
+  bx.lineWidth = 1.5;
+  for (let x = -20; x < W; x += 12) { bx.beginPath(); bx.moveTo(x, H); bx.lineTo(x + 24, GROUND + 8); bx.stroke(); }
+}
+function limb(c, x1, y1, x2, y2, w, fill) {
+  c.lineCap = 'round';
+  c.strokeStyle = INK; c.lineWidth = w + 7; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  c.strokeStyle = fill; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+}
+const pops = [];
+function pop(text, big) { pops.push({ text, big, t0: performance.now(), rot: (Math.random() - .5) * .3, x: big ? W / 2 : (pops.length % 2 ? 300 : 100), y: big ? 110 : 140 }); if (pops.length > 6) pops.shift(); }
+function star(c, x, y, r1, r2, n) { c.beginPath(); for (let i = 0; i < n * 2; i++) { const r = i % 2 ? r1 : r2, a = i / (n * 2) * Math.PI * 2; c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8); } c.closePath(); }
+
+let heroT = 0, targetT = 0;
+function drawHero(now) {
+  const c = hx, L = levelOf(S.xp), t = heroT, time = now / 1000, cx = W / 2;
+  c.drawImage(bg, 0, 0, W, H);
+  const th = 20 + Math.min(L, 30) * 0.85, ct = th * 0.72;
+  const hipW = 24 + Math.min(L, 30) * 0.45;
+  const hipY = GROUND - 172 + t * 74 + Math.sin(time * 2) * 1.2 * (1 - t);
+  const shY = hipY - 98, hy = shY - 44;
+  const ankL = [cx - 42, GROUND - 10], ankR = [cx + 42, GROUND - 10];
+  const kneeOut = 38 + t * 36, kneeY = GROUND - 88 + t * 12;
+  const kL = [cx - kneeOut, kneeY], kR = [cx + kneeOut, kneeY];
+  const hL = [cx - hipW, hipY], hR = [cx + hipW, hipY];
+
+  // aura
+  if (L >= 5) {
+    c.beginPath();
+    for (let i = 0; i <= 30; i++) {
+      const a = i / 30 * Math.PI * 2, j = (i % 2 ? 16 : 0) + Math.sin(time * 7 + i * 1.7) * 8;
+      c.lineTo(cx + Math.cos(a) * (128 + j), (hy + GROUND) / 2 + 10 + Math.sin(a) * (205 + j) * (a > Math.PI ? 1.05 : 0.95));
+    }
+    c.closePath(); c.fillStyle = 'rgba(224,38,45,.13)'; c.fill(); c.strokeStyle = RED; c.lineWidth = 3; c.stroke();
+  }
+  // shadow
+  c.fillStyle = 'rgba(20,20,22,.18)'; c.beginPath(); c.ellipse(cx, GROUND + 2, 90 + t * 20, 10, 0, 0, 7); c.fill();
+  // legs
+  limb(c, ...kL, ...ankL, ct, SKIN); limb(c, ...kR, ...ankR, ct, SKIN);
+  limb(c, ...hL, ...kL, th, SKIN); limb(c, ...hR, ...kR, th, SKIN);
+  // quad lines grow with level
+  if (L >= 4) {
+    c.strokeStyle = INK; c.lineWidth = 2;
+    [[hL, kL, -1], [hR, kR, 1]].forEach(([h, k, s]) => { c.beginPath(); c.moveTo(h[0] + (k[0] - h[0]) * .45 + s * 3, h[1] + (k[1] - h[1]) * .45); c.quadraticCurveTo(k[0] - s * 4, k[1] - 14, k[0] - s * 2, k[1] - 4); c.stroke(); });
+  }
+  // shoes
+  c.fillStyle = INK;
+  c.beginPath(); c.ellipse(ankL[0] - 6, GROUND - 4, 20, 9, 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(ankR[0] + 6, GROUND - 4, 20, 9, 0, 0, 7); c.fill();
+  // shorts
+  const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+  const mL = lerp(hL, kL, .42), mR = lerp(hR, kR, .42);
+  c.beginPath();
+  c.moveTo(cx - hipW - th * .55, hipY - 14); c.lineTo(cx + hipW + th * .55, hipY - 14);
+  c.lineTo(mR[0] + th * .62, mR[1]); c.lineTo(mR[0] - th * .62, mR[1] + 4);
+  c.lineTo(cx, hipY + 16);
+  c.lineTo(mL[0] + th * .62, mL[1] + 4); c.lineTo(mL[0] - th * .62, mL[1]);
+  c.closePath(); c.fillStyle = RED; c.fill(); c.strokeStyle = INK; c.lineWidth = 4; c.lineJoin = 'round'; c.stroke();
+  c.fillStyle = INK; c.fillRect(cx - hipW - th * .55, hipY - 16, (hipW + th * .55) * 2, 7);
+  // torso (tank top)
+  const sw = 50 + Math.min(L, 30) * 0.5, ww = 32 + Math.min(L, 30) * 0.2;
+  // arms behind torso edge
+  const elL = [cx - sw - 10, shY + 48], elR = [cx + sw + 10, shY + 48];
+  const fL = [cx - 18, shY + 54 - t * 12], fR = [cx + 18, shY + 54 - t * 12];
+  limb(c, cx - sw + 6, shY + 6, ...elL, 17 + L * .25, SKIN); limb(c, cx + sw - 6, shY + 6, ...elR, 17 + L * .25, SKIN);
+  c.beginPath();
+  c.moveTo(cx - sw, shY); c.lineTo(cx + sw, shY); c.lineTo(cx + ww, hipY - 12); c.lineTo(cx - ww, hipY - 12); c.closePath();
+  c.fillStyle = PAPER; c.fill(); c.strokeStyle = INK; c.lineWidth = 4; c.stroke();
+  // neckline + pec lines
+  c.lineWidth = 2.5; c.beginPath(); c.arc(cx, shY - 2, 18, 0.15, Math.PI - 0.15); c.stroke();
+  c.beginPath(); c.moveTo(cx - 26, shY + 30); c.quadraticCurveTo(cx - 12, shY + 38, cx - 3, shY + 30); c.moveTo(cx + 26, shY + 30); c.quadraticCurveTo(cx + 12, shY + 38, cx + 3, shY + 30); c.stroke();
+  if (L >= 8) { c.lineWidth = 2; for (let i = 0; i < 3; i++) { const y = shY + 50 + i * 14; c.beginPath(); c.moveTo(cx - 9, y); c.lineTo(cx - 3, y + 2); c.moveTo(cx + 9, y); c.lineTo(cx + 3, y + 2); c.stroke(); } }
+  // forearms + fists in front
+  limb(c, ...elL, ...fL, 14 + L * .2, SKIN); limb(c, ...elR, ...fR, 14 + L * .2, SKIN);
+  c.fillStyle = SKIN; c.strokeStyle = INK; c.lineWidth = 3.5;
+  [fL, fR].forEach(f => { c.beginPath(); c.arc(f[0], f[1], 11, 0, 7); c.fill(); c.stroke(); });
+  // neck + head
+  c.fillStyle = SKIN; c.fillRect(cx - 10, hy + 22, 20, 22); c.strokeStyle = INK; c.lineWidth = 3; c.strokeRect(cx - 10, hy + 22, 20, 18);
+  c.beginPath(); c.ellipse(cx, hy, 27, 31, 0, 0, 7); c.fillStyle = SKIN; c.fill(); c.lineWidth = 4; c.stroke();
+  // spiky hair
+  c.beginPath(); c.moveTo(cx - 29, hy - 2);
+  for (let i = 0; i <= 12; i++) { const a = Math.PI * (1.08 + i / 12 * 0.84), r = i % 2 ? 54 + Math.sin(time * 3 + i) * 2 : 30; c.lineTo(cx + Math.cos(a) * r, hy - 6 + Math.sin(a) * r); }
+  c.lineTo(cx + 29, hy - 2); c.quadraticCurveTo(cx, hy - 26, cx - 29, hy - 2); c.closePath();
+  c.fillStyle = INK; c.fill();
+  // headband + tails
+  const band = L >= 15 ? GOLD : RED;
+  c.fillStyle = band; c.strokeStyle = INK; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(cx - 28, hy - 14); c.quadraticCurveTo(cx, hy - 22, cx + 28, hy - 14); c.lineTo(cx + 28, hy - 5); c.quadraticCurveTo(cx, hy - 13, cx - 28, hy - 5); c.closePath(); c.fill(); c.stroke();
+  const wv = Math.sin(time * 6) * 6;
+  c.beginPath(); c.moveTo(cx + 26, hy - 12); c.quadraticCurveTo(cx + 50, hy - 20 + wv, cx + 66, hy - 8 - wv); c.lineTo(cx + 60, hy - 2 - wv); c.quadraticCurveTo(cx + 46, hy - 8 + wv, cx + 26, hy - 6); c.closePath(); c.fill(); c.stroke();
+  // face
+  c.strokeStyle = INK; c.lineWidth = 4; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(cx - 19, hy); c.lineTo(cx - 6, hy + 4); c.moveTo(cx + 19, hy); c.lineTo(cx + 6, hy + 4); c.stroke();
+  c.fillStyle = INK; c.beginPath(); c.ellipse(cx - 11, hy + 10, 3, 4, 0, 0, 7); c.ellipse(cx + 11, hy + 10, 3, 4, 0, 0, 7); c.fill();
+  if (t > 0.45) {
+    c.fillStyle = PAPER; c.lineWidth = 2.5; c.beginPath(); c.rect(cx - 9, hy + 18, 18, 7); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(cx - 9, hy + 21.5); c.lineTo(cx + 9, hy + 21.5); c.stroke();
+  } else { c.lineWidth = 3; c.beginPath(); c.moveTo(cx - 6, hy + 21); c.quadraticCurveTo(cx, hy + 24, cx + 7, hy + 19); c.stroke(); }
+  if (t > 0.6) { c.fillStyle = '#bfe3ff'; c.strokeStyle = INK; c.lineWidth = 2; c.beginPath(); c.moveTo(cx + 36, hy - 14); c.quadraticCurveTo(cx + 44, hy - 2, cx + 36, hy + 2); c.quadraticCurveTo(cx + 28, hy - 2, cx + 36, hy - 14); c.fill(); c.stroke(); }
+  // pops
+  for (let i = pops.length - 1; i >= 0; i--) {
+    const p = pops[i], age = (now - p.t0) / (p.big ? 1400 : 800);
+    if (age > 1) { pops.splice(i, 1); continue; }
+    const s = Math.min(1, age * 6) * (1 - Math.max(0, age - .75) * 4) * (p.big ? 1.25 : 1);
+    if (s <= 0) continue;
+    c.save(); c.translate(p.x, p.y - age * 20); c.rotate(p.rot); c.scale(s, s);
+    star(c, 0, 0, 38, 62, 14); c.fillStyle = PAPER; c.fill(); c.strokeStyle = INK; c.lineWidth = 4; c.stroke();
+    c.font = (p.text.length > 6 ? 20 : 26) + "px 'Dela Gothic One', Impact, sans-serif"; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 5; c.strokeStyle = INK; c.strokeText(p.text, 0, 2); c.fillStyle = RED; c.fillText(p.text, 0, 2);
+    c.restore();
+  }
+}
+let demoT = null;
+function heroLoop(now) {
+  if (demoT) {
+    const k = (now - demoT.t0) / 1100;
+    targetT = k < .5 ? Math.sin(k * Math.PI) : Math.max(0, Math.sin(k * Math.PI));
+    if (k >= 1) { targetT = 0; demoT = null; addRep(true); }
+  }
+  heroT += (targetT - heroT) * 0.28;
+  drawHero(now);
+  requestAnimationFrame(heroLoop);
+}
+
+/* ---------- camera + pose ---------- */
+const video = $('video'), ov = $('overlay'), oc = ov.getContext('2d');
+let landmarker = null, stream = null, facing = 'user', running = false, lastVideoTime = -1, lastTs = 0;
+const status = m => $('status').textContent = m;
+let bubbleHot = 0;
+function setBubble(text, hot) { const b = $('bubble'); b.hidden = false; b.textContent = text; b.classList.toggle('hot', !!hot); if (hot) bubbleHot = performance.now() + 2200; }
+function softBubble(text) { if (performance.now() > bubbleHot) setBubble(text, false); }
+
+async function loadModel() {
+  status('Loading pose model (about 6 MB, first time only)…');
+  const V = '0.10.14';
+  const { PoseLandmarker, FilesetResolver } = await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${V}/vision_bundle.mjs`);
+  const fs = await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${V}/wasm`);
+  const opts = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: d }, runningMode: 'VIDEO', numPoses: 1 });
+  try { return await PoseLandmarker.createFromOptions(fs, opts('GPU')); }
+  catch (e) { return await PoseLandmarker.createFromOptions(fs, opts('CPU')); }
+}
+
+async function startCamera() {
+  ensureAudio();
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { status('The camera needs a secure (https) page. Open Squat Saga from its hosted link.'); return; }
+  $('btnStart').disabled = true;
+  try {
+    if (!landmarker) landmarker = await loadModel();
+  } catch (e) { status('Could not load the pose model. Check your connection and try again.'); $('btnStart').disabled = false; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 960 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) { status('Camera access was blocked. Allow camera access for this page in your browser settings, then try again.'); $('btnStart').disabled = false; return; }
+  video.srcObject = stream; await video.play();
+  ov.width = video.videoWidth; ov.height = video.videoHeight;
+  [video, ov].forEach(el => el.classList.toggle('mirror', facing === 'user'));
+  $('idle').hidden = true; ['hudCount','modeChip','meter','btnFlip','btnEnd'].forEach(id => $(id).hidden = false);
+  $('btnStart').hidden = true; $('btnStart').disabled = false;
+  sess.reps = 0; sess.deep = 0; sess.xp = 0; render();
+  resetRep(); running = true; status('Tracking. Video stays on this device.');
+  setBubble('Step into frame');
+  requestAnimationFrame(poseLoop);
+}
+function stopCamera() {
+  running = false; stream?.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null;
+  oc.clearRect(0, 0, ov.width, ov.height); targetT = 0;
+  ['hudCount','modeChip','meter','btnFlip','btnEnd','bubble'].forEach(id => $(id).hidden = true);
+  $('idle').hidden = false; $('btnStart').hidden = false;
+}
+
+/* rep detection */
+let rep = { state: 'up', min: 999, maxDrop: 0, deep: false, base: null, mode: null, lastRep: 0, smooth: null, lost: false };
+function resetRep(mode = null) { rep = { state: 'up', min: 999, maxDrop: 0, deep: false, base: null, mode, lastRep: rep?.lastRep || 0, smooth: null, lost: false }; }
+const angle = (a, b, c) => { const v1x = a.x - b.x, v1y = a.y - b.y, v2x = c.x - b.x, v2y = c.y - b.y; const m = Math.hypot(v1x, v1y) * Math.hypot(v2x, v2y) || 1; return Math.acos(Math.max(-1, Math.min(1, (v1x * v2x + v1y * v2y) / m))) * 180 / Math.PI; };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function countRep(deep) {
+  const now = performance.now();
+  if (now - rep.lastRep < 500) return;
+  rep.lastRep = now; addRep(deep);
+  setBubble(deep ? 'DEEP REP! +XP' : 'Rep counted. Go lower for DEEP.', deep);
+}
+
+function analyze(lm) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const P = i => ({ x: lm[i].x * vw, y: lm[i].y * vh, v: lm[i].visibility ?? 0 });
+  const side = s => { const h = P(s ? 24 : 23), k = P(s ? 26 : 25), a = P(s ? 28 : 27); return { h, k, a, v: Math.min(h.v, k.v, a.v) }; };
+  const L = side(0), R = side(1);
+  const shL = P(11), shR = P(12);
+  const legsOk = Math.max(L.v, R.v) > 0.55;
+  const shouldersOk = Math.min(shL.v, shR.v) > 0.55;
+  const mode = legsOk ? 'full' : shouldersOk ? 'desk' : null;
+
+  if (!mode) {
+    if (rep.mode === 'desk' && rep.state === 'down' && rep.maxDrop > 0.5) { rep.lost = true; softBubble('Keep your head in frame at the bottom!'); return; }
+    softBubble('Step into frame so I can see you'); targetT = 0; return;
+  }
+  if (mode !== rep.mode) { resetRep(mode); $('modeChip').textContent = mode === 'full' ? 'Full body' : 'Desk mode'; }
+
+  let t = 0;
+  if (mode === 'full') {
+    const sides = [L, R].filter(s => s.v > 0.55);
+    let ang = sides.reduce((s, x) => s + angle(x.h, x.k, x.a), 0) / sides.length;
+    rep.smooth = rep.smooth == null ? ang : rep.smooth * 0.5 + ang * 0.5; ang = rep.smooth;
+    const hipBelow = sides.some(s => s.h.y >= s.k.y - 0.03 * vh);
+    t = clamp((168 - ang) / (168 - 88), 0, 1);
+    if (rep.state === 'up' && ang < 120) { rep.state = 'down'; rep.min = ang; rep.deep = false; }
+    if (rep.state === 'down') {
+      rep.min = Math.min(rep.min, ang);
+      if (ang <= 95 || hipBelow) rep.deep = true;
+      softBubble(rep.deep ? 'DEEP! Now drive up!' : 'Lower… hips to knee height');
+      if (ang > 155) { rep.state = 'up'; countRep(rep.deep); }
+    } else softBubble('Squat! Hips below knees = DEEP rep');
+  } else {
+    const y = (shL.y + shR.y) / 2, scale = Math.hypot(shL.x - shR.x, shL.y - shR.y) || 1;
+    if (rep.base == null) rep.base = y;
+    if (rep.state === 'up') rep.base = y < rep.base ? y : rep.base * 0.985 + y * 0.015;
+    let drop = (y - rep.base) / scale;
+    rep.smooth = rep.smooth == null ? drop : rep.smooth * 0.5 + drop * 0.5; drop = rep.smooth;
+    t = clamp(drop / 1.15, 0, 1);
+    if (rep.lost) { rep.lost = false; rep.deep = true; }
+    if (rep.state === 'up' && drop > 0.7) { rep.state = 'down'; rep.maxDrop = drop; rep.deep = false; }
+    if (rep.state === 'down') {
+      rep.maxDrop = Math.max(rep.maxDrop, drop);
+      if (rep.maxDrop > 1.1) rep.deep = true;
+      softBubble(rep.deep ? 'DEEP! Drive up!' : 'Lower…');
+      if (drop < 0.25) { rep.state = 'up'; countRep(rep.deep); }
+    } else softBubble('Desk mode: squat straight down');
+  }
+  targetT = t;
+  $('meterFill').style.height = (t * 100) + '%';
+}
+
+const BONES = [[11,12],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[11,13],[13,15],[12,14],[14,16],[27,31],[28,32]];
+function drawSkeleton(lm) {
+  const w = ov.width, h = ov.height;
+  oc.clearRect(0, 0, w, h);
+  oc.lineCap = 'round';
+  const ok = i => (lm[i].visibility ?? 0) > 0.5;
+  for (const [pass, col, wid] of [[0, PAPER, 10], [1, RED, 5]]) {
+    oc.strokeStyle = col; oc.lineWidth = wid * (w / 640);
+    BONES.forEach(([a, b]) => { if (ok(a) && ok(b)) { oc.beginPath(); oc.moveTo(lm[a].x * w, lm[a].y * h); oc.lineTo(lm[b].x * w, lm[b].y * h); oc.stroke(); } });
+  }
+  [11,12,23,24,25,26,27,28].forEach(i => { if (!ok(i)) return; oc.beginPath(); oc.arc(lm[i].x * w, lm[i].y * h, 7 * (w / 640), 0, 7); oc.fillStyle = PAPER; oc.fill(); oc.lineWidth = 3 * (w / 640); oc.strokeStyle = INK; oc.stroke(); });
+}
+
+function poseLoop() {
+  if (!running) return;
+  if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    let ts = performance.now(); if (ts <= lastTs) ts = lastTs + 1; lastTs = ts;
+    try {
+      const res = landmarker.detectForVideo(video, ts);
+      const lm = res.landmarks?.[0];
+      if (lm) { drawSkeleton(lm); analyze(lm); }
+      else { oc.clearRect(0, 0, ov.width, ov.height); analyze(new Array(33).fill({ x: 0, y: 0, visibility: 0 })); }
+    } catch (e) { /* skip frame */ }
+  }
+  requestAnimationFrame(poseLoop);
+}
+
+$('btnStart').addEventListener('click', startCamera);
+$('btnFlip').addEventListener('click', async () => { facing = facing === 'user' ? 'environment' : 'user'; stopCamera(); await startCamera(); });
+$('btnEnd').addEventListener('click', () => {
+  stopCamera();
+  $('sumReps').textContent = sess.reps; $('sumDeep').textContent = sess.deep; $('sumXp').textContent = '+' + sess.xp;
+  $('summary').hidden = false;
+});
+$('sumClose').addEventListener('click', () => $('summary').hidden = true);
+$('btnDemo').addEventListener('click', () => { ensureAudio(); if (!demoT) demoT = { t0: performance.now() }; });
+
+buildBg(levelOf(S.xp));
+render();
+requestAnimationFrame(heroLoop);
+document.fonts?.load("26px 'Dela Gothic One'");
+</script>
+</body>
+</html>
